@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Balance Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    :root {
+      --bg-body: #020617;
+      --bg-card: #0f172a;
+      --text-main: #f8fafc;
+      --text-label: #94a3b8;
+      --border-color: #334155;
+      --primary: #22c55e;
+      --secondary: #3b82f6;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-body);
+      color: var(--text-main);
+      margin: 0; padding: 20px;
+      padding-top: calc(20px + env(safe-area-inset-top));
+    }
+    .container { max-width: 450px; margin: auto; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+    h2 { margin: 0; font-weight: 700; font-size: 22px; letter-spacing: -0.5px; }
+    .btn-refresh { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    
+    .net-worth-card {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid var(--border-color);
+      border-radius: 16px; padding: 20px; margin-bottom: 25px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    .net-worth-label { font-size: 12px; font-weight: 600; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.5px; }
+    .net-worth-val { font-size: 32px; font-weight: 700; color: var(--primary); margin-top: 5px; }
+    
+    .bank-grid { display: flex; flex-direction: column; gap: 12px; }
+    .bank-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px; padding: 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      transition: transform 0.2s;
+    }
+    .bank-card:active { transform: scale(0.98); }
+    .bank-info { display: flex; flex-direction: column; gap: 2px; }
+    .bank-name { font-weight: 600; font-size: 16px; }
+    .bank-time { font-size: 10px; color: var(--text-label); }
+    .bank-balance { font-weight: 700; font-size: 18px; color: var(--text-main); }
+    
+    .loading { text-align: center; color: var(--text-label); font-size: 14px; margin-top: 4px; animation: blink 1.2s infinite; }
+    @keyframes blink { 50% { opacity: 0.4; } }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h2>Asset Explorer</h2>
+    <button class="btn-refresh" id="refreshBtn">🔄</button>
+  </header>
+
+  <div class="net-worth-card">
+    <div class="net-worth-label">Total Liquid Balance</div>
+    <div class="net-worth-val" id="totalAsset">₹0.00</div>
+  </div>
+
+  <div id="loadingState" class="loading">Fetching latest bank insights...</div>
+  <div class="bank-grid" id="bankGrid"></div>
+</div>
+
+<script>
+  // Paste your Google Apps Script Web App URL here
+  const SCRIPT_URL = "YOUR_SCRIPT_WEB_APP_URL_HERE";
+
+  async function fetchBalances() {
+    const grid = document.getElementById('bankGrid');
+    const loading = document.getElementById('loadingState');
+    const totalEl = document.getElementById('totalAsset');
+    
+    loading.style.display = 'block';
+    
+    try {
+      const response = await fetch(SCRIPT_URL);
+      const data = await response.json();
+      
+      grid.innerHTML = '';
+      let totalSum = 0;
+      
+      Object.keys(data).forEach(bankName => {
+        const info = data[bankName];
+        totalSum += info.balance;
+        
+        const card = document.createElement('div');
+        card.className = 'bank-card';
+        card.innerHTML = `
+          <div class="bank-info">
+            <span class="bank-name">${bankName}</span>
+            <span class="bank-time">Updated: ${info.updatedAt}</span>
+          </div>
+          <div class="bank-balance">₹${info.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+        `;
+        grid.appendChild(card);
+      });
+      
+      totalEl.textContent = `₹${totalSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      loading.style.display = 'none';
+      
+    } catch (err) {
+      loading.textContent = "Error updating records. Check connection.";
+      console.error(err);
+    }
+  }
+
+  document.getElementById('refreshBtn').onclick = fetchBalances;
+  window.onload = () => {
+    fetchBalances();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Registration Failed', err));
+    }
+  };
+</script>
+</body>
+</html>
